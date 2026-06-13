@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path
+        name="whatsapp_images_sent"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/" />
+    <external-path
+        name="whatsapp_images_private"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Private/" />
+    <external-path
+        name="whatsapp_video_sent"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video/Sent/" />
+    <external-path
+        name="whatsapp_video_private"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video/Private/" />
+    <external-path
+        name="whatsapp_audio_sent"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Audio/Sent/" />
+    <external-path
+        name="whatsapp_audio_private"
+        path="Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Audio/Private/" />
+</paths>

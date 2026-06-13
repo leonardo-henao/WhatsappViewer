@@ -1,0 +1,23 @@
+<resources>
+	<string name="app_name">WhatsApp Viewer</string>
+	<string name="admob_app_id">ca-app-pub-1892613718311718~3514103128</string>
+	<string name="loading">Cargando...</string>
+	<string name="no_media_found">No se encontraron medios</string>
+	<string name="images">Imágenes</string>
+	<string name="audios">Audios</string>
+	<string name="videos">Videos</string>
+	<string name="total_storage">Almacenamiento total</string>
+	<string name="delete_selected">Eliminar seleccionados</string>
+	<string name="delete_all">Eliminar todo</string>
+	<string name="cancel">Cancelar</string>
+	<string name="confirm">Confirmar</string>
+	<string name="confirm_delete">¿Estás seguro de que deseas eliminar los elementos seleccionados?</string>
+	<string name="confirm_delete_all">¿Estás seguro de que deseas eliminar todos los elementos?</string>
+	<string name="storage_permission_title">Permiso de almacenamiento</string>
+	<string name="storage_permission_message">Esta aplicación necesita acceso al almacenamiento para
+		mostrar y gestionar los archivos multimedia de WhatsApp.</string>
+	<string name="view">Ver</string>
+	<string name="no_items_selected">No hay elementos seleccionados</string>
+	<string name="select_all">Seleccionar todo</string>
+	<string name="deselect_all">Deseleccionar todo</string>
+</resources>
