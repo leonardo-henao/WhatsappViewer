@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModelProvider
@@ -42,8 +44,18 @@ import com.wappscorp.wpvw.data.model.MediaType
 import com.wappscorp.wpvw.ui.screens.ImageViewerScreen
 import com.wappscorp.wpvw.ui.screens.MainScreen
 import com.wappscorp.wpvw.ui.screens.VideoPlayerScreen
+import com.wappscorp.wpvw.data.model.AppVersionInfo
 import com.wappscorp.wpvw.ui.theme.WhatsappViewerTheme
 import com.wappscorp.wpvw.viewmodel.MediaViewModel
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Info
+import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URL
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -93,6 +105,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            var showUpdateDialog by remember { mutableStateOf(false) }
+            var updateInfo by remember { mutableStateOf<AppVersionInfo?>(null) }
+
+            LaunchedEffect(Unit) {
+                try {
+                    val json = withContext(Dispatchers.IO) {
+                        URL("https://raw.githubusercontent.com/leonardo-henao/info-apps/refs/heads/main/wp-viewer.json").readText()
+                    }
+                    val info = Gson().fromJson(json, AppVersionInfo::class.java)
+                    if (info.versionCode > BuildConfig.VERSION_CODE) {
+                        updateInfo = info
+                        showUpdateDialog = true
+                    }
+                } catch (_: Exception) { }
+            }
+
             WhatsappViewerTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -113,6 +141,20 @@ class MainActivity : ComponentActivity() {
                                     "Permiso necesario para usar la aplicación",
                                     Toast.LENGTH_LONG
                                 ).show()
+                            }
+                        )
+                    }
+
+                    if (showUpdateDialog && updateInfo != null) {
+                        UpdateDialog(
+                            info = updateInfo!!,
+                            onUpdate = {
+                                val url = if (updateInfo!!.urlDownload.startsWith("http"))
+                                    updateInfo!!.urlDownload
+                                else
+                                    "https://${updateInfo!!.urlDownload}"
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                startActivity(intent)
                             }
                         )
                     }
@@ -287,4 +329,30 @@ fun AppContent(
             onRequestPermissions = onRequestPermissions
         )
     }
+}
+
+@Composable
+fun UpdateDialog(info: AppVersionInfo, onUpdate: () -> Unit) {
+    val lang = Locale.getDefault().language
+    val updateText = when (lang) {
+        "es" -> info.latestUpdate_es.ifEmpty { info.latestUpdate_en }
+        else -> info.latestUpdate_en.ifEmpty { info.latestUpdate_es }
+    }
+
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("¡Nueva versión disponible!") },
+        text = {
+            Column {
+                Text("Actualiza para obtener las últimas mejoras:")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(updateText)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onUpdate) {
+                Text("ACTUALIZAR")
+            }
+        }
+    )
 }

@@ -42,5 +42,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.screens.RecommendedAppsActivity"
+            android:exported="false"
+            android:label="Aplicaciones Recomendadas"
+            android:theme="@style/Theme.WhatsappViewer" />
     </application>
 </manifest>

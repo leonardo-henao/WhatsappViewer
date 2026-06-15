@@ -52,7 +52,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
@@ -73,6 +86,8 @@ fun MainScreen(
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val context = LocalContext.current
+  var showSettingsDialog by remember { mutableStateOf(false) }
+  var showPrivacyDialog by remember { mutableStateOf(false) }
 
   Scaffold(
       topBar = {
@@ -105,6 +120,10 @@ fun MainScreen(
                 }
                 IconButton(onClick = { viewModel.requestDeleteSelected() }) {
                   Icon(Icons.Filled.Delete, contentDescription = "Eliminar seleccionados")
+                }
+              } else {
+                IconButton(onClick = { showSettingsDialog = true }) {
+                  Icon(Icons.Filled.Settings, contentDescription = "Ajustes")
                 }
               }
             },
@@ -230,6 +249,144 @@ fun MainScreen(
         }
 
         item { BannerAd() }
+      }
+    }
+  }
+
+  if (showSettingsDialog) {
+    SettingsDialog(
+      onDismiss = { showSettingsDialog = false },
+      onPrivacyPolicy = {
+        showSettingsDialog = false
+        showPrivacyDialog = true
+      },
+      onRecommendedApps = {
+        showSettingsDialog = false
+        context.startActivity(
+          Intent(context, com.wappscorp.wpvw.ui.screens.RecommendedAppsActivity::class.java)
+        )
+      },
+      onShareApp = {
+        showSettingsDialog = false
+        shareApp(context)
+      }
+    )
+  }
+
+  if (showPrivacyDialog) {
+    PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
+  }
+}
+
+private fun shareApp(context: android.content.Context) {
+  val shareText = "Descarga WhatsApp Viewer: https://play.google.com/store/apps/details?id=${context.packageName}"
+  val intent = Intent(Intent.ACTION_SEND).apply {
+    type = "text/plain"
+    putExtra(Intent.EXTRA_TEXT, shareText)
+  }
+  context.startActivity(Intent.createChooser(intent, "Compartir aplicación"))
+}
+
+@Composable
+fun SettingsDialog(
+  onDismiss: () -> Unit,
+  onPrivacyPolicy: () -> Unit,
+  onRecommendedApps: () -> Unit,
+  onShareApp: () -> Unit,
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    icon = {
+      Icon(Icons.Filled.Settings, contentDescription = null)
+    },
+    title = { Text("Ajustes") },
+    text = {
+      Column {
+        SettingsOption(
+          icon = Icons.Filled.Info,
+          title = "Ver políticas de privacidad",
+          onClick = onPrivacyPolicy
+        )
+        SettingsOption(
+          icon = Icons.Filled.Star,
+          title = "Aplicaciones recomendadas",
+          onClick = onRecommendedApps
+        )
+        SettingsOption(
+          icon = Icons.Filled.Share,
+          title = "Compartir la aplicación",
+          onClick = onShareApp
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Cerrar")
+      }
+    }
+  )
+}
+
+@Composable
+fun SettingsOption(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clickable(onClick = onClick)
+      .padding(vertical = 12.dp),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Icon(
+      imageVector = icon,
+      contentDescription = null,
+      tint = MaterialTheme.colorScheme.primary,
+      modifier = Modifier.size(24.dp)
+    )
+    Spacer(modifier = Modifier.width(16.dp))
+    Text(
+      text = title,
+      style = MaterialTheme.typography.bodyLarge
+    )
+  }
+}
+
+@Composable
+fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
+  Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.material3.Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .fillMaxSize(0.9f),
+      shape = RoundedCornerShape(16.dp)
+    ) {
+      Column {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "Políticas de Privacidad",
+            style = MaterialTheme.typography.titleLarge
+          )
+          IconButton(onClick = onDismiss) {
+            Icon(Icons.Filled.Close, contentDescription = "Cerrar")
+          }
+        }
+        AndroidView(
+          factory = { ctx ->
+            WebView(ctx).apply {
+              settings.javaScriptEnabled = true
+              settings.loadWithOverviewMode = true
+              settings.useWideViewPort = true
+              webViewClient = WebViewClient()
+              loadUrl("https://leonardohenao.com/tecnolapps/privacy-policies/whatsapp-viewer/")
+            }
+          },
+          modifier = Modifier.fillMaxSize()
+        )
       }
     }
   }
