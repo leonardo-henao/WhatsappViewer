@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "your-firebase-project",
-    "storage_bucket": "your-firebase-project.appspot.com"
+    "project_number": "955831367298",
+    "project_id": "whatsapp-77323",
+    "storage_bucket": "whatsapp-77323.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:xxxxxxxxxxxxxxxx",
+        "mobilesdk_app_id": "1:955831367298:android:bf5c5a607c6b523b1ee69b",
         "android_client_info": {
           "package_name": "com.wappscorp.wpvw"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_API_KEY_HERE"
+          "current_key": "AIzaSyAIK1XcbPJo9PiAdHWAdAhDLuvAZGrTJnY"
         }
       ],
       "services": {

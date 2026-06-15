@@ -42,8 +42,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,300 +69,278 @@ fun MainScreen(
     onNavigateToVideoPlayer: (WhatsAppMedia) -> Unit,
     onNavigateToAudioPlayer: (WhatsAppMedia) -> Unit,
     hasPermissions: Boolean,
-    onRequestPermissions: () -> Unit
+    onRequestPermissions: () -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+  val uiState by viewModel.uiState.collectAsState()
+  val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (uiState.selectionMode) {
-                        Text("${uiState.selectedCount} seleccionados")
-                    } else {
-                        Text("WhatsApp Viewer")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
+  Scaffold(
+      topBar = {
+        TopAppBar(
+            title = {
+              if (uiState.selectionMode) {
+                Text("${uiState.selectedCount} seleccionados")
+              } else {
+                Text("WhatsApp Viewer")
+              }
+            },
+            colors =
+                TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-                navigationIcon = {
-                    if (uiState.selectionMode) {
-                        IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Salir selección")
-                        }
-                    }
-                },
-                actions = {
-                    if (uiState.selectionMode) {
-                        IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(Icons.Filled.SelectAll, contentDescription = "Seleccionar todo")
-                        }
-                        IconButton(onClick = { viewModel.deleteSelected() }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar seleccionados")
-                        }
-                    }
+            navigationIcon = {
+              if (uiState.selectionMode) {
+                IconButton(onClick = { viewModel.clearSelection() }) {
+                  Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Salir selección")
                 }
-            )
+              }
+            },
+            actions = {
+              if (uiState.selectionMode) {
+                IconButton(onClick = { viewModel.selectAll() }) {
+                  Icon(Icons.Filled.SelectAll, contentDescription = "Seleccionar todo")
+                }
+                IconButton(onClick = { viewModel.requestDeleteSelected() }) {
+                  Icon(Icons.Filled.Delete, contentDescription = "Eliminar seleccionados")
+                }
+              }
+            },
+        )
+      }
+  ) { padding ->
+    if (uiState.isLoading) {
+      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+      }
+    } else {
+      LazyColumn(
+          modifier = Modifier.fillMaxSize().padding(padding),
+          contentPadding = PaddingValues(bottom = 16.dp),
+      ) {
+        item {
+          StorageSummary(
+              totalSize = uiState.totalSize,
+              imagesSize = uiState.imagesSize,
+              audiosSize = uiState.audiosSize,
+              videosSize = uiState.videosSize,
+          )
         }
-    ) { padding ->
-        if (uiState.isLoading) {
+
+        if (uiState.images.isEmpty() && uiState.audios.isEmpty() && uiState.videos.isEmpty()) {
+          item {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+              Column(
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  modifier = Modifier.fillMaxWidth(),
+              ) {
+                Icon(
+                    imageVector = Icons.Filled.PhotoLibrary,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "No se encontraron archivos multimedia de WhatsApp",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text =
+                        "Busca en:\n/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/\nWhatsApp Images/Sent/ - WhatsApp Images/Private/\nWhatsApp Video/Sent/ - WhatsApp Video/Private/\nWhatsApp Audio/Sent/ - WhatsApp Audio/Private/",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    textAlign = TextAlign.Center,
+                )
+              }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                item {
-                    StorageSummary(
-                        totalSize = uiState.totalSize,
-                        imagesSize = uiState.imagesSize,
-                        audiosSize = uiState.audiosSize,
-                        videosSize = uiState.videosSize
-                    )
-                }
-
-                if (uiState.images.isEmpty() && uiState.audios.isEmpty() && uiState.videos.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PhotoLibrary,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "No se encontraron archivos multimedia de WhatsApp",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Busca en:\n/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/\nWhatsApp Images/Sent/ - WhatsApp Images/Private/\nWhatsApp Video/Sent/ - WhatsApp Video/Private/\nWhatsApp Audio/Sent/ - WhatsApp Audio/Private/",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (uiState.images.isNotEmpty()) {
-                    item {
-                        SectionHeader(
-                            icon = Icons.Filled.Image,
-                            title = "Imágenes",
-                            count = uiState.images.size,
-                            sectionSize = uiState.imagesSize,
-                            onDeleteAll = { viewModel.deleteAllByType(MediaType.IMAGE) }
-                        )
-                    }
-                    item {
-                        MediaRow(
-                            mediaList = uiState.images,
-                            selectionMode = uiState.selectionMode,
-                            onMediaClick = onNavigateToImageViewer,
-                            onSelectionToggle = { viewModel.toggleSelection(it) },
-                            onShare = { shareMedia(context, it) }
-                        )
-                    }
-                }
-
-                if (uiState.videos.isNotEmpty()) {
-                    item {
-                        SectionHeader(
-                            icon = Icons.Filled.VideoLibrary,
-                            title = "Videos",
-                            count = uiState.videos.size,
-                            sectionSize = uiState.videosSize,
-                            onDeleteAll = { viewModel.deleteAllByType(MediaType.VIDEO) }
-                        )
-                    }
-                    item {
-                        MediaRow(
-                            mediaList = uiState.videos,
-                            selectionMode = uiState.selectionMode,
-                            onMediaClick = onNavigateToVideoPlayer,
-                            onSelectionToggle = { viewModel.toggleSelection(it) },
-                            onShare = { shareMedia(context, it) }
-                        )
-                    }
-                }
-
-                if (uiState.audios.isNotEmpty()) {
-                    item {
-                        SectionHeader(
-                            icon = Icons.Filled.Audiotrack,
-                            title = "Audios",
-                            count = uiState.audios.size,
-                            sectionSize = uiState.audiosSize,
-                            onDeleteAll = { viewModel.deleteAllByType(MediaType.AUDIO) }
-                        )
-                    }
-                    item {
-                        MediaRow(
-                            mediaList = uiState.audios,
-                            selectionMode = uiState.selectionMode,
-                            onMediaClick = onNavigateToAudioPlayer,
-                            onSelectionToggle = { viewModel.toggleSelection(it) },
-                            onShare = { shareMedia(context, it) }
-                        )
-                    }
-                }
-
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AndroidView(
-                            factory = { ctx ->
-                                AdView(ctx).apply {
-                                    adUnitId = com.wappscorp.wpvw.ads.AdManager.BANNER_AD_ID
-                                    setAdSize(AdSize.BANNER)
-                                    loadAd(AdRequest.Builder().build())
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
+          }
         }
+
+        if (uiState.images.isNotEmpty()) {
+          item {
+            SectionHeader(
+                icon = Icons.Filled.Image,
+                title = "Imágenes",
+                count = uiState.images.size,
+                sectionSize = uiState.imagesSize,
+                onDeleteAll = { viewModel.requestDeleteAllByType(MediaType.IMAGE) },
+            )
+          }
+          item { BannerAd() }
+          item {
+            MediaRow(
+                mediaList = uiState.images,
+                selectionMode = uiState.selectionMode,
+                onMediaClick = onNavigateToImageViewer,
+                onSelectionToggle = { viewModel.toggleSelection(it) },
+                onShare = { shareMedia(context, it) },
+            )
+          }
+        }
+
+        if (uiState.videos.isNotEmpty()) {
+          item {
+            SectionHeader(
+                icon = Icons.Filled.VideoLibrary,
+                title = "Videos",
+                count = uiState.videos.size,
+                sectionSize = uiState.videosSize,
+                onDeleteAll = { viewModel.requestDeleteAllByType(MediaType.VIDEO) },
+            )
+          }
+          item {
+            MediaRow(
+                mediaList = uiState.videos,
+                selectionMode = uiState.selectionMode,
+                onMediaClick = onNavigateToVideoPlayer,
+                onSelectionToggle = { viewModel.toggleSelection(it) },
+                onShare = { shareMedia(context, it) },
+            )
+          }
+        }
+
+        if (uiState.audios.isNotEmpty()) {
+          item {
+            SectionHeader(
+                icon = Icons.Filled.Audiotrack,
+                title = "Audios",
+                count = uiState.audios.size,
+                sectionSize = uiState.audiosSize,
+                onDeleteAll = { viewModel.requestDeleteAllByType(MediaType.AUDIO) },
+            )
+          }
+          item {
+            MediaRow(
+                mediaList = uiState.audios,
+                selectionMode = uiState.selectionMode,
+                onMediaClick = onNavigateToAudioPlayer,
+                onSelectionToggle = { viewModel.toggleSelection(it) },
+                onShare = { shareMedia(context, it) },
+            )
+          }
+        }
+
+        item { BannerAd() }
+      }
     }
+  }
 }
 
 private fun shareMedia(context: android.content.Context, media: WhatsAppMedia) {
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        media.file
-    )
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = when (media.type) {
-            MediaType.IMAGE -> "image/*"
-            MediaType.VIDEO -> "video/*"
-            MediaType.AUDIO -> "audio/*"
-        }
+  val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", media.file)
+  val intent =
+      Intent(Intent.ACTION_SEND).apply {
+        type =
+            when (media.type) {
+              MediaType.IMAGE -> "image/*"
+              MediaType.VIDEO -> "video/*"
+              MediaType.AUDIO -> "audio/*"
+            }
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, "Compartir ${media.name}"))
+      }
+  context.startActivity(Intent.createChooser(intent, "Compartir ${media.name}"))
 }
 
 @Composable
-fun StorageSummary(
-    totalSize: Long,
-    imagesSize: Long,
-    audiosSize: Long,
-    videosSize: Long
-) {
-    val totalFormatted = formatSize(totalSize)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Archivos enviados de WhatsApp",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            Text(
-                text = totalFormatted,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Archivos enviados que ya no son útiles",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            StorageBar(
-                label = "Imágenes",
-                size = imagesSize,
-                total = totalSize,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            StorageBar(
-                label = "Videos",
-                size = videosSize,
-                total = totalSize,
-                color = MaterialTheme.colorScheme.tertiary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            StorageBar(
-                label = "Audios",
-                size = audiosSize,
-                total = totalSize,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
-    }
+fun BannerAd() {
+  Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+    AndroidView(
+        factory = { ctx ->
+          val display = ctx.resources.displayMetrics
+          val adWidth = (display.widthPixels / display.density).toInt()
+          AdView(ctx).apply {
+            adUnitId = com.wappscorp.wpvw.ads.AdManager.BANNER_AD_ID
+            setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(ctx, adWidth))
+            loadAd(AdRequest.Builder().build())
+          }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+  }
 }
 
 @Composable
-fun StorageBar(
-    label: String,
-    size: Long,
-    total: Long,
-    color: Color
-) {
-    val sizeFormatted = formatSize(size)
-    val progress = if (total > 0) size.toFloat() / total.toFloat() else 0f
+fun StorageSummary(totalSize: Long, imagesSize: Long, audiosSize: Long, videosSize: Long) {
+  val totalFormatted = formatSize(totalSize)
 
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = label, style = MaterialTheme.typography.bodySmall)
-            Text(text = sizeFormatted, style = MaterialTheme.typography.bodySmall)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp),
-            color = color,
-            trackColor = color.copy(alpha = 0.2f),
-        )
+  Card(
+      modifier = Modifier.fillMaxWidth().padding(16.dp),
+      shape = RoundedCornerShape(16.dp),
+      colors =
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+          ),
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      Text(
+          text = "Archivos enviados de WhatsApp",
+          style = MaterialTheme.typography.titleSmall,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+      )
+      Text(
+          text = totalFormatted,
+          style = MaterialTheme.typography.headlineMedium,
+          fontWeight = FontWeight.Bold,
+          color = MaterialTheme.colorScheme.primary,
+      )
+      Text(
+          text = "Archivos enviados que ya no son útiles",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+      StorageBar(
+          label = "Imágenes",
+          size = imagesSize,
+          total = totalSize,
+          color = MaterialTheme.colorScheme.primary,
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      StorageBar(
+          label = "Videos",
+          size = videosSize,
+          total = totalSize,
+          color = MaterialTheme.colorScheme.tertiary,
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      StorageBar(
+          label = "Audios",
+          size = audiosSize,
+          total = totalSize,
+          color = MaterialTheme.colorScheme.secondary,
+      )
     }
+  }
+}
+
+@Composable
+fun StorageBar(label: String, size: Long, total: Long, color: Color) {
+  val sizeFormatted = formatSize(size)
+  val progress = if (total > 0) size.toFloat() / total.toFloat() else 0f
+
+  Column {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+      Text(text = label, style = MaterialTheme.typography.bodySmall)
+      Text(text = sizeFormatted, style = MaterialTheme.typography.bodySmall)
+    }
+    Spacer(modifier = Modifier.height(4.dp))
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = Modifier.fillMaxWidth().height(8.dp),
+        color = color,
+        trackColor = color.copy(alpha = 0.2f),
+    )
+  }
 }
 
 @Composable
@@ -373,51 +349,42 @@ fun SectionHeader(
     title: String,
     count: Int,
     sectionSize: Long,
-    onDeleteAll: () -> Unit
+    onDeleteAll: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "$count archivos - ${formatSize(sectionSize)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        }
-        Button(
-            onClick = onDeleteAll,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                contentColor = MaterialTheme.colorScheme.error
-            ),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Eliminar todo", style = MaterialTheme.typography.labelSmall)
-        }
+  Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(24.dp),
+    )
+    Spacer(modifier = Modifier.width(8.dp))
+    Column(modifier = Modifier.weight(1f)) {
+      Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+      Text(
+          text = "$count archivos - ${formatSize(sectionSize)}",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+      )
     }
+    Button(
+        onClick = onDeleteAll,
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                contentColor = MaterialTheme.colorScheme.error,
+            ),
+        shape = RoundedCornerShape(8.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+      Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+      Spacer(modifier = Modifier.width(4.dp))
+      Text("Eliminar todo", style = MaterialTheme.typography.labelSmall)
+    }
+  }
 }
 
 @Composable
@@ -426,34 +393,31 @@ fun MediaRow(
     selectionMode: Boolean,
     onMediaClick: (WhatsAppMedia) -> Unit,
     onSelectionToggle: (WhatsAppMedia) -> Unit,
-    onShare: (WhatsAppMedia) -> Unit
+    onShare: (WhatsAppMedia) -> Unit,
 ) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.height(240.dp)
-    ) {
-        items(
-            items = mediaList,
-            key = { it.id }
-        ) { media ->
-            MediaItemCard(
-                media = media,
-                selectionMode = selectionMode,
-                onItemClick = { onMediaClick(media) },
-                onSelectionToggle = { onSelectionToggle(media) },
-                onShare = onShare,
-                modifier = Modifier.width(160.dp)
-            )
-        }
+  LazyRow(
+      contentPadding = PaddingValues(horizontal = 16.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      modifier = Modifier.height(240.dp),
+  ) {
+    items(items = mediaList, key = { it.id }) { media ->
+      MediaItemCard(
+          media = media,
+          selectionMode = selectionMode,
+          onItemClick = { onMediaClick(media) },
+          onSelectionToggle = { onSelectionToggle(media) },
+          onShare = onShare,
+          modifier = Modifier.width(160.dp),
+      )
     }
+  }
 }
 
 fun formatSize(size: Long): String {
-    return when {
-        size < 1024 -> "$size B"
-        size < 1024 * 1024 -> String.format("%.1f KB", size / 1024.0)
-        size < 1024 * 1024 * 1024 -> String.format("%.1f MB", size / (1024.0 * 1024.0))
-        else -> String.format("%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
-    }
+  return when {
+    size < 1024 -> "$size B"
+    size < 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.1f KB", size / 1024.0)
+    size < 1024 * 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.1f MB", size / (1024.0 * 1024.0))
+    else -> String.format(java.util.Locale.getDefault(), "%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
+  }
 }

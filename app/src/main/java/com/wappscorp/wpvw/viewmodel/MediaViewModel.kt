@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+sealed class DeleteAction {
+    data object Selected : DeleteAction()
+    data class ByType(val type: MediaType) : DeleteAction()
+    data object All : DeleteAction()
+}
+
 data class MediaUiState(
     val images: List<WhatsAppMedia> = emptyList(),
     val audios: List<WhatsAppMedia> = emptyList(),
@@ -34,6 +40,9 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MediaRepository(application)
     private val _uiState = MutableStateFlow(MediaUiState())
     val uiState: StateFlow<MediaUiState> = _uiState.asStateFlow()
+
+    private val _pendingDeleteAction = MutableStateFlow<DeleteAction?>(null)
+    val pendingDeleteAction: StateFlow<DeleteAction?> = _pendingDeleteAction.asStateFlow()
 
     init {
         loadMedia()
@@ -68,6 +77,53 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(isLoading = false, error = e.message)
                 }
             }
+        }
+    }
+
+    fun requestDeleteSelected() {
+        _pendingDeleteAction.value = DeleteAction.Selected
+    }
+
+    fun requestDeleteAllByType(type: MediaType) {
+        _pendingDeleteAction.value = DeleteAction.ByType(type)
+    }
+
+    fun requestDeleteAll() {
+        _pendingDeleteAction.value = DeleteAction.All
+    }
+
+    fun executePendingDelete() {
+        val action = _pendingDeleteAction.value ?: return
+        _pendingDeleteAction.value = null
+        viewModelScope.launch {
+            when (action) {
+                is DeleteAction.Selected -> {
+                    val selectedItems = getSelectedMedia()
+                    withContext(Dispatchers.IO) { repository.deleteMultipleMedia(selectedItems) }
+                }
+                is DeleteAction.ByType -> {
+                    val items = when (action.type) {
+                        MediaType.IMAGE -> _uiState.value.images
+                        MediaType.AUDIO -> _uiState.value.audios
+                        MediaType.VIDEO -> _uiState.value.videos
+                    }
+                    withContext(Dispatchers.IO) { repository.deleteMultipleMedia(items) }
+                }
+                is DeleteAction.All -> {
+                    val allMedia = _uiState.value.images + _uiState.value.audios + _uiState.value.videos
+                    withContext(Dispatchers.IO) { repository.deleteMultipleMedia(allMedia) }
+                }
+            }
+            clearSelection()
+            loadMedia()
+        }
+    }
+
+    fun deleteMedia(media: WhatsAppMedia) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.deleteMedia(media) }
+            clearSelectedMedia()
+            loadMedia()
         }
     }
 
@@ -135,40 +191,6 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSelectedMedia() {
         _uiState.update { it.copy(selectedMedia = null) }
-    }
-
-    fun deleteSelected() {
-        viewModelScope.launch {
-            val selectedItems = getSelectedMedia()
-            val deletedCount = withContext(Dispatchers.IO) {
-                repository.deleteMultipleMedia(selectedItems)
-            }
-            loadMedia()
-        }
-    }
-
-    fun deleteAllByType(type: MediaType) {
-        viewModelScope.launch {
-            val itemsToDelete = when (type) {
-                MediaType.IMAGE -> _uiState.value.images
-                MediaType.AUDIO -> _uiState.value.audios
-                MediaType.VIDEO -> _uiState.value.videos
-            }
-            withContext(Dispatchers.IO) {
-                repository.deleteMultipleMedia(itemsToDelete)
-            }
-            loadMedia()
-        }
-    }
-
-    fun deleteAll() {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                val allMedia = _uiState.value.images + _uiState.value.audios + _uiState.value.videos
-                repository.deleteMultipleMedia(allMedia)
-            }
-            loadMedia()
-        }
     }
 
     fun getSelectedMedia(): List<WhatsAppMedia> {

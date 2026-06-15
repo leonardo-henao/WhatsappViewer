@@ -21,9 +21,9 @@ data class WhatsAppMedia(
         get() {
             return when {
                 size < 1024 -> "$size B"
-                size < 1024 * 1024 -> String.format("%.1f KB", size / 1024.0)
-                size < 1024 * 1024 * 1024 -> String.format("%.1f MB", size / (1024.0 * 1024.0))
-                else -> String.format("%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
+                size < 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.1f KB", size / 1024.0)
+                size < 1024 * 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.1f MB", size / (1024.0 * 1024.0))
+                else -> String.format(java.util.Locale.getDefault(), "%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
             }
         }
 }

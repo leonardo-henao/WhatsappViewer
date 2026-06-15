@@ -3,7 +3,6 @@ package com.wappscorp.wpvw
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -14,6 +13,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +29,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.wappscorp.wpvw.ads.AdManager
 import com.wappscorp.wpvw.data.model.MediaType
 import com.wappscorp.wpvw.ui.screens.ImageViewerScreen
 import com.wappscorp.wpvw.ui.screens.MainScreen
@@ -50,10 +59,15 @@ class MainActivity : ComponentActivity() {
             hasPermissions = true
             viewModel.loadMedia()
         } else {
-            Toast.makeText(this, "Los permisos son necesarios para acceder a los archivos multimedia", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                "Los permisos son necesarios para acceder a los archivos multimedia",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private val manageStorageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -63,13 +77,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var interstitialAd: InterstitialAd? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        loadInterstitial()
 
         setContent {
+            val pendingAction by viewModel.pendingDeleteAction.collectAsState()
+
+            LaunchedEffect(pendingAction) {
+                if (pendingAction != null) {
+                    showInterstitialThenExecute()
+                }
+            }
+
             WhatsappViewerTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     var showPermissionDialog by remember { mutableStateOf(needsPermissionDialog()) }
 
                     if (showPermissionDialog) {
@@ -80,14 +108,57 @@ class MainActivity : ComponentActivity() {
                             },
                             onCancel = {
                                 showPermissionDialog = false
-                                Toast.makeText(this@MainActivity, "Permiso necesario para usar la aplicación", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Permiso necesario para usar la aplicación",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         )
                     }
 
-                    AppContent(viewModel = viewModel, hasPermissions = hasPermissions, onRequestPermissions = { checkAndRequestPermissions() })
+                    AppContent(
+                        viewModel = viewModel,
+                        hasPermissions = hasPermissions,
+                        onRequestPermissions = { checkAndRequestPermissions() })
                 }
             }
+        }
+    }
+
+    private fun loadInterstitial() {
+        InterstitialAd.load(
+            this, AdManager.INTERSTITIAL_AD_ID, AdRequest.Builder().build(),
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    interstitialAd = ad
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    interstitialAd = null
+                }
+            }
+        )
+    }
+
+    private fun showInterstitialThenExecute() {
+        if (interstitialAd != null) {
+            interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    viewModel.executePendingDelete()
+                    loadInterstitial()
+                }
+
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    interstitialAd = null
+                    viewModel.executePendingDelete()
+                }
+            }
+            interstitialAd?.show(this)
+        } else {
+            viewModel.executePendingDelete()
+            loadInterstitial()
         }
     }
 
@@ -104,7 +175,12 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) return true
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val permissions = getRequiredPermissions()
-            if (permissions.any { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }) return true
+            if (permissions.any {
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        it
+                    ) != PackageManager.PERMISSION_GRANTED
+                }) return true
         }
         return false
     }
@@ -112,7 +188,7 @@ class MainActivity : ComponentActivity() {
     private fun launchManageStorageSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                data = Uri.parse("package:$packageName")
+                data = "package:$packageName".toUri()
             }
             manageStorageLauncher.launch(intent)
         } else {
@@ -127,7 +203,12 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             val permissions = getRequiredPermissions()
-            val needsRequest = permissions.any { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+            val needsRequest = permissions.any {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    it
+                ) != PackageManager.PERMISSION_GRANTED
+            }
             if (needsRequest) {
                 requestPermissionLauncher.launch(permissions.toTypedArray())
             } else {
@@ -143,6 +224,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.READ_MEDIA_VIDEO,
             Manifest.permission.READ_MEDIA_AUDIO
         )
+
         else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 }
@@ -155,9 +237,9 @@ fun PermissionDialog(onAllow: () -> Unit, onCancel: () -> Unit) {
         text = {
             Text(
                 "WhatsApp Viewer necesita acceso a todos los archivos para poder leer los medios de WhatsApp.\n\n" +
-                "WhatsApp guarda sus imágenes, videos y audios en una carpeta protegida del sistema " +
-                "(Android/media/com.whatsapp). Para acceder a estos archivos, Android requiere un permiso especial.\n\n" +
-                "Tus archivos personales no serán modificados ni compartidos sin tu consentimiento."
+                        "WhatsApp guarda sus imágenes, videos y audios en una carpeta protegida del sistema " +
+                        "(Android/media/com.whatsapp). Para acceder a estos archivos, Android requiere un permiso especial.\n\n" +
+                        "Tus archivos personales no serán modificados ni compartidos sin tu consentimiento."
             )
         },
         confirmButton = {
@@ -174,17 +256,35 @@ fun PermissionDialog(onAllow: () -> Unit, onCancel: () -> Unit) {
 }
 
 @Composable
-fun AppContent(viewModel: MediaViewModel, hasPermissions: Boolean, onRequestPermissions: () -> Unit) {
+fun AppContent(
+    viewModel: MediaViewModel,
+    hasPermissions: Boolean,
+    onRequestPermissions: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedMedia = uiState.selectedMedia
 
     if (selectedMedia != null) {
         BackHandler { viewModel.clearSelectedMedia() }
         when (selectedMedia.type) {
-            MediaType.IMAGE -> ImageViewerScreen(selectedMedia, onBack = { viewModel.clearSelectedMedia() }, onDelete = { viewModel.deleteSelected(); viewModel.clearSelectedMedia() })
-            MediaType.VIDEO, MediaType.AUDIO -> VideoPlayerScreen(selectedMedia, onBack = { viewModel.clearSelectedMedia() }, onDelete = { viewModel.deleteSelected(); viewModel.clearSelectedMedia() })
+            MediaType.IMAGE -> ImageViewerScreen(
+                selectedMedia,
+                onBack = { viewModel.clearSelectedMedia() },
+                onDelete = { viewModel.deleteMedia(selectedMedia) })
+
+            MediaType.VIDEO, MediaType.AUDIO -> VideoPlayerScreen(
+                selectedMedia,
+                onBack = { viewModel.clearSelectedMedia() },
+                onDelete = { viewModel.deleteMedia(selectedMedia) })
         }
     } else {
-        MainScreen(viewModel = viewModel, onNavigateToImageViewer = { viewModel.selectMediaForViewing(it) }, onNavigateToVideoPlayer = { viewModel.selectMediaForViewing(it) }, onNavigateToAudioPlayer = { viewModel.selectMediaForViewing(it) }, hasPermissions = hasPermissions, onRequestPermissions = onRequestPermissions)
+        MainScreen(
+            viewModel = viewModel,
+            onNavigateToImageViewer = { viewModel.selectMediaForViewing(it) },
+            onNavigateToVideoPlayer = { viewModel.selectMediaForViewing(it) },
+            onNavigateToAudioPlayer = { viewModel.selectMediaForViewing(it) },
+            hasPermissions = hasPermissions,
+            onRequestPermissions = onRequestPermissions
+        )
     }
 }
