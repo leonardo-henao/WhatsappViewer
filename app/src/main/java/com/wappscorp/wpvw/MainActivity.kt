@@ -260,15 +260,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun getRequiredPermissions(): List<String> = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> listOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO
-        )
-
-        else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
+    private fun getRequiredPermissions(): List<String> = listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }
 
 @Composable
